@@ -5,8 +5,26 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Dupe_Finder_UI"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        
-    </Grid>
+        Title="Dupe Finder" Height="450" Width="800">
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Name="miOpenFolder" Header="_Open Folder..." Click="miOpenFolder_Click"/>
+                <MenuItem Name="miOpen" Header="O_pen Saved Session..."/>
+                <MenuItem Name="miSaveAs" Header="_Save Seesion As..."/>
+            </MenuItem>
+            <MenuItem Header="_Comparison">
+                <MenuItem Name="miStartChecksumComparison" Header="_Start Checksum Comparison" IsEnabled="False" Click="miStartChecksumComparison_Click"/>
+            </MenuItem>
+        </Menu>
+        <StatusBar DockPanel.Dock="Bottom">
+            <Label Name="lblFolder"/>
+            <Label Name="lblStatus"/>
+            <Label Name="lblDuplicateCount"/>
+            <Label Name="lblWastedSpace"/>
+        </StatusBar>
+        <TreeView Name="tvDupesList">
+            <TreeViewItem Header="Nothing opened yet."/>
+        </TreeView>
+    </DockPanel>
 </Window>
