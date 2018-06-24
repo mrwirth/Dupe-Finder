@@ -22,7 +22,7 @@ namespace Dupe_Finder_DB
 
             // Make sure each File is unique.
             builder.Entity<File>()
-                .HasIndex(f => new { f.Directory, f.Filename })
+                .HasIndex(f => new { f.Path })
                 .IsUnique();
         }
 

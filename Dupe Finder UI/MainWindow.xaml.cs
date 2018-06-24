@@ -1,5 +1,4 @@
-﻿using Dupe_Finder_DB;
-using Dupe_Finder_VM;
+﻿using Dupe_Finder_UI.ViewModel;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -23,12 +22,16 @@ namespace Dupe_Finder_UI
     /// </summary>
     public partial class MainWindow : Window
     {
+        protected DuplicatesTreeVM DuplicatesTreeVM { get; }
+
         public MainWindow()
         {
             InitializeComponent();
+            DuplicatesTreeVM = new DuplicatesTreeVM();
+            DataContext = DuplicatesTreeVM;
         }
 
-        private async void miOpenFolder_Click(object sender, RoutedEventArgs e)
+        private void miOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             var ofd = new OpenFileDialog
             {
@@ -43,34 +46,13 @@ namespace Dupe_Finder_UI
             if (ofd.ShowDialog() == true)
             {
                 string path = Path.GetDirectoryName(ofd.FileName);
-                lblFolder.Content = path;
-                lblStatus.Content = "Working...";
-                var result = await Operations.GetBasicComparison(path);
-                tvDupesList.Items.Clear();
-                foreach (var item in result.TreeViewItems)
-                {
-                    tvDupesList.Items.Add(item);
-                }
-                lblDuplicateCount.Content = $"Extra Files: {result.DuplicateItemCount} files in {result.TreeViewItems.Count().ToString("N0")} groups";
-                lblWastedSpace.Content = $"Wasted Space: {result.WastedSpace.ToString("N0")} bytes";
-                miStartChecksumComparison.IsEnabled = true;
-                lblStatus.Content = "Done";
+                DuplicatesTreeVM.LoadData(path);
             }
         }
 
-        private async void miStartChecksumComparison_Click(object sender, RoutedEventArgs e)
+        private void miStartChecksumComparison_Click(object sender, RoutedEventArgs e)
         {
-            lblStatus.Content = "Working...";
-            var result = await Operations.GetFullComparison();
-            tvDupesList.Items.Clear();
-            foreach (var item in result.TreeViewItems)
-            {
-                tvDupesList.Items.Add(item);
-            }
-            lblDuplicateCount.Content = $"Extra Files: {result.DuplicateItemCount} files in {result.TreeViewItems.Count().ToString("N0")} groups";
-            lblWastedSpace.Content = $"Wasted Space: {result.WastedSpace.ToString("N0")} bytes";
-            miStartChecksumComparison.IsEnabled = true;
-            lblStatus.Content = "Done";
+            DuplicatesTreeVM.DoFullComparison();
         }
     }
 }

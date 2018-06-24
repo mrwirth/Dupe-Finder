@@ -110,6 +110,7 @@
       <HintPath>..\packages\System.ComponentModel.Annotations.4.5.0\lib\net461\System.ComponentModel.Annotations.dll</HintPath>
     </Reference>
     <Reference Include="System.ComponentModel.DataAnnotations" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
     <Reference Include="System.Diagnostics.DiagnosticSource, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Diagnostics.DiagnosticSource.4.5.0\lib\net46\System.Diagnostics.DiagnosticSource.dll</HintPath>
@@ -145,6 +146,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ViewModel\BaseVM.cs" />
+    <Compile Include="ViewModel\DupeGroupVM.cs" />
+    <Compile Include="ViewModel\DuplicateFileVM.cs" />
+    <Compile Include="ViewModel\DuplicatesTreeVM.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -189,10 +194,6 @@
     <ProjectReference Include="..\Dupe Finder DB\Dupe Finder DB.csproj">
       <Project>{6FF49228-3525-4CA9-9DE7-5D2074227503}</Project>
       <Name>Dupe Finder DB</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Dupe Finder VM\Dupe Finder VM.csproj">
-      <Project>{93DD9CFE-C210-46E3-944D-6FA5B2515897}</Project>
-      <Name>Dupe Finder VM</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

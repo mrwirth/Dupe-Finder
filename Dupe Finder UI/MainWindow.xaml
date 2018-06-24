@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Dupe_Finder_UI"
+        xmlns:vm="clr-namespace:Dupe_Finder_UI.ViewModel"
         mc:Ignorable="d"
         Title="Dupe Finder" Height="450" Width="800">
     <DockPanel>
@@ -11,20 +12,43 @@
             <MenuItem Header="_File">
                 <MenuItem Name="miOpenFolder" Header="_Open Folder..." Click="miOpenFolder_Click"/>
                 <MenuItem Name="miOpen" Header="O_pen Saved Session..."/>
-                <MenuItem Name="miSaveAs" Header="_Save Seesion As..."/>
+                <MenuItem Name="miSaveAs" Header="_Save Session As..."/>
             </MenuItem>
             <MenuItem Header="_Comparison">
-                <MenuItem Name="miStartChecksumComparison" Header="_Start Checksum Comparison" IsEnabled="False" Click="miStartChecksumComparison_Click"/>
+                <MenuItem Name="miStartChecksumComparison"
+                          Header="_Start Checksum Comparison"
+                          IsEnabled="{Binding FullComparisonEnabled}"
+                          Click="miStartChecksumComparison_Click"/>
             </MenuItem>
         </Menu>
         <StatusBar DockPanel.Dock="Bottom">
-            <Label Name="lblFolder"/>
-            <Label Name="lblStatus"/>
-            <Label Name="lblDuplicateCount"/>
-            <Label Name="lblWastedSpace"/>
+            <Label Name="lblFolder" Content="{Binding FolderPath}"/>
+            <Label Name="lblStatus" Content="{Binding Status}"/>
+            <Label Name="lblDuplicateCount" Content="{Binding DuplicateItemCountText}"/>
+            <Label Name="lblWastedSpace" Content="{Binding WastedSpaceText}"/>
         </StatusBar>
-        <TreeView Name="tvDupesList">
-            <TreeViewItem Header="Nothing opened yet."/>
+        <TreeView Name="tvDupesList" ItemsSource="{Binding Children}">
+            <!-- Styling for general tree members. -->
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="{x:Type TreeViewItem}">
+                    <!-- Nothing yet. -->
+                </Style>
+            </TreeView.ItemContainerStyle>
+            <!-- Conversion for different types to tree members. -->
+            <TreeView.Resources>
+                <!-- For `DupeGroupVM` items. -->
+                <HierarchicalDataTemplate
+                    DataType="{x:Type vm:DupeGroupVM}"
+                    ItemsSource="{Binding Children}">
+                    <TextBlock Text="{Binding Description}"/>
+                </HierarchicalDataTemplate>
+                <!-- For `DuplicateFileVM` items. -->
+                <DataTemplate
+                    DataType="{x:Type vm:DuplicateFileVM}">
+                    <TextBlock Text="{Binding Path}"/>
+                </DataTemplate>
+            </TreeView.Resources>
+            <!--<TreeViewItem Header="Nothing opened yet."/>-->
         </TreeView>
     </DockPanel>
 </Window>
