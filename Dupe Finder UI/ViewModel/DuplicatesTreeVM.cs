@@ -15,7 +15,7 @@ namespace Dupe_Finder_UI.ViewModel
     {
         #region Data
         #region Label data
-        private string _status;
+        private string _status = "Nothing loaded yet.";
         public string Status
         {
             get => _status;
@@ -46,9 +46,20 @@ namespace Dupe_Finder_UI.ViewModel
                 _duplicateItemCount = value;
                 OnPropertyChanged("DuplicateItemCount");
                 OnPropertyChanged("DuplicateItemCountText");
+                DuplicateItemCountIsValid = true;
             }
         }
         public string DuplicateItemCountText => $"Extra Files: {DuplicateItemCount} files in {Children.Count().ToString("N0")} groups";
+        private bool _duplicateItemCountIsValid;
+        public bool DuplicateItemCountIsValid
+        {
+            get => _duplicateItemCountIsValid;
+            set
+            {
+                _duplicateItemCountIsValid = value;
+                OnPropertyChanged("DuplicateItemCountIsValid");
+            }
+        }
 
         private long _wastedSpace;
         public long WastedSpace
@@ -59,9 +70,20 @@ namespace Dupe_Finder_UI.ViewModel
                 _wastedSpace = value;
                 OnPropertyChanged("WastedSpace");
                 OnPropertyChanged("WastedSpaceText");
+                WastedSpaceIsValid = true;
             }
         }
         public string WastedSpaceText => $"Wasted Space: {WastedSpace.ToString("N0")} bytes";
+        private bool _wastedSpaceIsValid;
+        public bool WastedSpaceIsValid
+        {
+            get => _wastedSpaceIsValid;
+            set
+            {
+                _wastedSpaceIsValid = value;
+                OnPropertyChanged("WastedSpaceIsValid");
+            }
+        }
         #endregion Label data
 
         #region Functional Data
@@ -96,8 +118,10 @@ namespace Dupe_Finder_UI.ViewModel
         public async void LoadData(string path)
         {
             // Set status and clear old data.
-            Status = StatusText[StatusType.Working];
             FullComparisonEnabled = false;
+            Status = StatusText[StatusType.Working];
+            DuplicateItemCountIsValid = false;
+            WastedSpaceIsValid = false;
             Children.Clear();
 
             // Load all the basic info about the new directory into the database.
@@ -145,8 +169,10 @@ namespace Dupe_Finder_UI.ViewModel
         public async void DoFullComparison()
         {
             // Set status, clear the entries, and compute checksums where necessary.
-            Status = StatusText[StatusType.Working];
             FullComparisonEnabled = false;
+            Status = StatusText[StatusType.Working];
+            DuplicateItemCountIsValid = false;
+            WastedSpaceIsValid = false;
             Children.Clear();
             await Task.Run(() => CompareFiles());
 

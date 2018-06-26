@@ -54,5 +54,10 @@ namespace Dupe_Finder_UI
         {
             DuplicatesTreeVM.DoFullComparison();
         }
+
+        private void btnOpen_Click(object sender, RoutedEventArgs e)
+        {
+            miOpenFolder_Click(sender, e);
+        }
     }
 }
