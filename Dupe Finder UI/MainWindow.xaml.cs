@@ -31,7 +31,7 @@ namespace Dupe_Finder_UI
             DataContext = DuplicatesTreeVM;
         }
 
-        private void miOpenFolder_Click(object sender, RoutedEventArgs e)
+        private void OpenFolder(object sender, RoutedEventArgs e)
         {
             var ofd = new OpenFileDialog
             {
@@ -50,14 +50,22 @@ namespace Dupe_Finder_UI
             }
         }
 
-        private void miStartChecksumComparison_Click(object sender, RoutedEventArgs e)
+        private void StartChecksumComparison(object sender, RoutedEventArgs e)
         {
             DuplicatesTreeVM.DoFullComparison();
         }
 
-        private void btnOpen_Click(object sender, RoutedEventArgs e)
+        private void TextBlockCopy_CanExecute(object sender, CanExecuteRoutedEventArgs e)
         {
-            miOpenFolder_Click(sender, e);
+            e.CanExecute = true;
+        }
+
+        private void TextBlockCopy_Executed(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.DataContext is DuplicateFileVM duplicateFile)
+            {
+                Clipboard.SetDataObject(duplicateFile.Path);
+            }
         }
     }
 }

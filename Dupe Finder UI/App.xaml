@@ -4,6 +4,6 @@
              xmlns:local="clr-namespace:Dupe_Finder_UI"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary Source="Resources/Icons.xaml"/>
     </Application.Resources>
 </Application>

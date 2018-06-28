@@ -150,6 +150,10 @@
     <Compile Include="ViewModel\DupeGroupVM.cs" />
     <Compile Include="ViewModel\DuplicateFileVM.cs" />
     <Compile Include="ViewModel\DuplicatesTreeVM.cs" />
+    <Page Include="Resources\Icons.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
