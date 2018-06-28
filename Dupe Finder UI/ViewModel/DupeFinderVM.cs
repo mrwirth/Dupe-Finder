@@ -14,7 +14,7 @@ using System.Windows.Input;
 
 namespace Dupe_Finder_UI.ViewModel
 {
-    public class DuplicatesTreeVM : BaseVM, IDataErrorInfo
+    public class DupeFinderVM : BaseVM, IDataErrorInfo
     {
         #region Data
         #region Status Data
@@ -133,7 +133,7 @@ namespace Dupe_Finder_UI.ViewModel
         #endregion Data
 
         #region Constructors
-        public DuplicatesTreeVM(IOService ioService)
+        public DupeFinderVM(IOService ioService)
         {
             IOService = ioService;
         }

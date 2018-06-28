@@ -22,12 +22,12 @@ namespace Dupe_Finder_UI
     /// </summary>
     public partial class MainWindow : Window
     {
-        protected DuplicatesTreeVM DuplicatesTreeVM { get; }
+        protected DupeFinderVM DuplicatesTreeVM { get; }
 
         public MainWindow()
         {
             InitializeComponent();
-            DuplicatesTreeVM = new DuplicatesTreeVM(new WpfIOService());
+            DuplicatesTreeVM = new DupeFinderVM(new WpfIOService());
             DataContext = DuplicatesTreeVM;
         }
 
