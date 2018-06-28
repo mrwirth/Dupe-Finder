@@ -13,25 +13,30 @@
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
-                <MenuItem Header="_Open Folder..." Click="OpenFolder"/>
+                <MenuItem Header="_Open Folder..." Command="{Binding OpenFolder}"/>
                 <MenuItem Header="O_pen Saved Session..."/>
                 <MenuItem Header="_Save Session As..."/>
             </MenuItem>
             <MenuItem Header="_Comparison">
                 <MenuItem Header="_Start Checksum Comparison"
-                          IsEnabled="{Binding FullComparisonEnabled}"
-                          Click="StartChecksumComparison"/>
+                          Command="{Binding DoChecksumComparison}"/>
             </MenuItem>
         </Menu>
-        <DockPanel LastChildFill="True" DockPanel.Dock="Top">
-            <Button Click="OpenFolder" DockPanel.Dock="Right">
-                <ContentControl Content="{StaticResource OpenFolder}" ToolTip="Open Folder..."/>
-            </Button>
-            <TextBlock VerticalAlignment="Center"
-                       Margin="2,0"
-                       IsEnabled="False"
-                       Text="{Binding FolderPath, Mode=OneWay}"/>
-        </DockPanel>
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar>
+                <Button Command="{Binding OpenFolder}">
+                    <ContentControl Content="{StaticResource OpenFolder}" ToolTip="Open Folder..."/>
+                </Button>
+            </ToolBar>
+        </ToolBarTray>
+        <TextBox DockPanel.Dock="Top"
+                 VerticalAlignment="Center"
+                 Text="{Binding FolderPath, UpdateSourceTrigger=PropertyChanged, ValidatesOnDataErrors=True,
+                        ValidatesOnExceptions=True, NotifyOnValidationError=True}">
+            <TextBox.InputBindings>
+                <KeyBinding Key="Return" Command="{Binding OpenFolderPath}"/>
+            </TextBox.InputBindings>
+        </TextBox>
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem Content="{Binding Status}"/>
             <StatusBarItem Content="{Binding DuplicateItemCountText}"

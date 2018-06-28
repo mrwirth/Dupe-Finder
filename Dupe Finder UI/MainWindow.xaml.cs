@@ -27,32 +27,8 @@ namespace Dupe_Finder_UI
         public MainWindow()
         {
             InitializeComponent();
-            DuplicatesTreeVM = new DuplicatesTreeVM();
+            DuplicatesTreeVM = new DuplicatesTreeVM(new WpfIOService());
             DataContext = DuplicatesTreeVM;
-        }
-
-        private void OpenFolder(object sender, RoutedEventArgs e)
-        {
-            var ofd = new OpenFileDialog
-            {
-                // Set validate names and check file exists to false otherwise windows will
-                // not let you select "Folder Selection."
-                ValidateNames = false,
-                CheckFileExists = false,
-                CheckPathExists = true,
-                // Always default to Folder Selection.
-                FileName = "Folder Selection."
-            };
-            if (ofd.ShowDialog() == true)
-            {
-                string path = Path.GetDirectoryName(ofd.FileName);
-                DuplicatesTreeVM.LoadData(path);
-            }
-        }
-
-        private void StartChecksumComparison(object sender, RoutedEventArgs e)
-        {
-            DuplicatesTreeVM.DoFullComparison();
         }
 
         private void TextBlockCopy_CanExecute(object sender, CanExecuteRoutedEventArgs e)

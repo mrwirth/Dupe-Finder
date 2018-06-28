@@ -3,18 +3,28 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Dupe_Finder_UI.ViewModel
 {
-    public class DuplicatesTreeVM : BaseVM
+    public class DuplicatesTreeVM : BaseVM, IDataErrorInfo
     {
         #region Data
-        #region Label data
+        #region Status Data
+        protected enum StatusType { Done, Working };
+        protected Dictionary<StatusType, string> StatusText = new Dictionary<StatusType, string>()
+        {
+            { StatusType.Done, "Done." },
+            { StatusType.Working, "Working..." }
+        };
+
         private string _status = "Nothing loaded yet.";
         public string Status
         {
@@ -25,18 +35,9 @@ namespace Dupe_Finder_UI.ViewModel
                 OnPropertyChanged("Status");
             }
         }
+        #endregion Status Data
 
-        private string _folderPath;
-        public string FolderPath
-        {
-            get => _folderPath;
-            set
-            {
-                _folderPath = value;
-                OnPropertyChanged("FolderPath");
-            }
-        }
-
+        #region Results Data
         private long _duplicateItemCount;
         public long DuplicateItemCount
         {
@@ -50,6 +51,7 @@ namespace Dupe_Finder_UI.ViewModel
             }
         }
         public string DuplicateItemCountText => $"Extra Files: {DuplicateItemCount} files in {Children.Count().ToString("N0")} groups";
+
         private bool _duplicateItemCountIsValid;
         public bool DuplicateItemCountIsValid
         {
@@ -74,6 +76,7 @@ namespace Dupe_Finder_UI.ViewModel
             }
         }
         public string WastedSpaceText => $"Wasted Space: {WastedSpace.ToString("N0")} bytes";
+
         private bool _wastedSpaceIsValid;
         public bool WastedSpaceIsValid
         {
@@ -84,41 +87,192 @@ namespace Dupe_Finder_UI.ViewModel
                 OnPropertyChanged("WastedSpaceIsValid");
             }
         }
-        #endregion Label data
+        #endregion Results Data
 
-        #region Functional Data
-        private bool _fullComparisonEnabled = false;
-        public bool FullComparisonEnabled
+        #region Path Data
+        // Last item is the currently loaded path.
+        private Stack<string> FolderPathHistory = new Stack<string>();
+        private string _folderPath;
+        public string FolderPath
         {
-            get => _fullComparisonEnabled;
+            get => _folderPath;
             set
             {
-                _fullComparisonEnabled = value;
-                OnPropertyChanged("FullComparisonEnabled");
+                _folderPath = value;
+                OnPropertyChanged("FolderPath");
             }
         }
-        #endregion Functional Data
+        #endregion Path Data
 
-        #region Local data
+        #region Local Data
         protected enum ChecksumType { md5, sha256 };
-        protected enum StatusType { Done, Working };
-        protected Dictionary<StatusType, string> StatusText = new Dictionary<StatusType, string>()
+
+        protected enum StateType
         {
-            { StatusType.Done, "Done." },
-            { StatusType.Working, "Working..." }
-        };
-        #endregion Local data
+            NoData = 0, // Intentional default value.
+            Working,
+            DirectoryOpened,
+            ChecksumComparisonCompleted,
+            BinaryComparisonCompleted
+        }
+        private StateType _state;
+        protected StateType State
+        {
+            get => _state;
+            set
+            {
+                _state = value;
+                CommandManager.InvalidateRequerySuggested();
+            }
+        }
+        #endregion Local Data
+
+        #region IOService
+        protected IOService IOService;
+        #endregion IOService
         #endregion Data
 
         #region Constructors
+        public DuplicatesTreeVM(IOService ioService)
+        {
+            IOService = ioService;
+        }
         #endregion Constructors
+
+        #region IDataErrorInfo Members
+        public string Error => null;
+
+        public string this[string columnName]
+        {
+            get
+            {
+                var result = string.Empty;
+                if (columnName == "FolderPath")
+                {
+                    if (FolderPath != null && FolderPath != "" && Directory.Exists(FolderPath) == false)
+                    {
+                        result = "Directory does not exist.";
+                    }
+                }
+                return result;
+            }
+        }
+        #endregion IDataErrorInfo Members
+
+        #region Commands
+        #region OpenFolderCommand
+        protected bool CanOpenFolder(object param)
+        {
+            return State != StateType.Working;
+        }
+        protected async Task ExecuteOpenFolder(object param)
+        {
+            var LastState = State;
+            State = StateType.Working;
+            var path = IOService.OpenFolderDialog();
+            if (path != null)
+            {
+                FolderPath = path;
+                await LoadData(path);
+                FolderPathHistory.Push(path);
+                State = StateType.DirectoryOpened;
+            }
+            else
+            {
+                // Revert to previous state.
+                State = LastState;
+            }
+        }
+        private ICommand _openFolder;
+        public ICommand OpenFolder
+        {
+            get
+            {
+                if (_openFolder == null)
+                {
+                    _openFolder = new RelayCommandAsync(
+                        param => ExecuteOpenFolder(param),
+                        param => CanOpenFolder(param)
+                        );
+                }
+                return _openFolder;
+            }
+        }
+        #endregion OpenFolderCommand
+
+        #region OpenFolderPathCommand
+        protected bool CanOpenFolderPath(object param)
+        {
+            return true;
+        }
+        protected async Task ExecuteOpenFolderPath(object param)
+        {
+            var LastState = State;
+            State = StateType.Working;
+            var path = FolderPath;
+            if (path != null && Directory.Exists(path))
+            {
+                await LoadData(path);
+                FolderPathHistory.Push(path);
+                State = StateType.DirectoryOpened;
+            }
+            else
+            {
+                // Revert to previous state.
+                State = LastState;
+            }
+        }
+        private ICommand _openFolderPath;
+        public ICommand OpenFolderPath
+        {
+            get
+            {
+                if (_openFolderPath == null)
+                {
+                    _openFolderPath = new RelayCommandAsync(
+                        param => ExecuteOpenFolderPath(param),
+                        param => CanOpenFolderPath(param)
+                        );
+                }
+                return _openFolderPath;
+            }
+        }
+        #endregion OpenFolderPathCommand
+
+        #region DoChecksumComparisonCommand
+        protected bool CanDoChecksumComparison(object param)
+        {
+            return State != StateType.Working && State != StateType.NoData;
+        }
+        protected async Task ExecuteDoChecksumComparison(object param)
+        {
+            State = StateType.Working;
+            await ChecksumComparison();
+            State = StateType.BinaryComparisonCompleted;
+        }
+        private ICommand _doChecksumComparison;
+        public ICommand DoChecksumComparison
+        {
+            get
+            {
+                if (_doChecksumComparison == null)
+                {
+                    _doChecksumComparison = new RelayCommandAsync(
+                        param => ExecuteDoChecksumComparison(param),
+                        param => CanDoChecksumComparison(param)
+                        );
+                }
+                return _doChecksumComparison;
+            }
+        }
+        #endregion DoChecksumComparisonCommand
+        #endregion Commands
 
         #region Operations
 
-        public async void LoadData(string path)
+        public async Task LoadData(string path)
         {
             // Set status and clear old data.
-            FullComparisonEnabled = false;
             Status = StatusText[StatusType.Working];
             DuplicateItemCountIsValid = false;
             WastedSpaceIsValid = false;
@@ -163,13 +317,11 @@ namespace Dupe_Finder_UI.ViewModel
 
             // Set status to finished and enable full comparison.
             Status = StatusText[StatusType.Done];
-            FullComparisonEnabled = true;
         }
 
-        public async void DoFullComparison()
+        public async Task ChecksumComparison()
         {
             // Set status, clear the entries, and compute checksums where necessary.
-            FullComparisonEnabled = false;
             Status = StatusText[StatusType.Working];
             DuplicateItemCountIsValid = false;
             WastedSpaceIsValid = false;
@@ -287,7 +439,9 @@ namespace Dupe_Finder_UI.ViewModel
                 context.SaveChanges();
             }
         }
+        #endregion Operations
 
+        #region Utility Functions
         static string GetChecksum(string filename, ChecksumType type)
         {
             string computed;
@@ -327,6 +481,6 @@ namespace Dupe_Finder_UI.ViewModel
                 }
             }
         }
-        #endregion Operations
+        #endregion Utility Functions
     }
 }
