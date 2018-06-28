@@ -35,6 +35,7 @@
                         ValidatesOnExceptions=True, NotifyOnValidationError=True}">
             <TextBox.InputBindings>
                 <KeyBinding Key="Return" Command="{Binding OpenFolderPath}"/>
+                <KeyBinding Key="Esc" Command="{Binding ResetFolderPath}"/>
             </TextBox.InputBindings>
         </TextBox>
         <StatusBar DockPanel.Dock="Bottom">

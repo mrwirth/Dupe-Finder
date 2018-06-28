@@ -239,6 +239,39 @@ namespace Dupe_Finder_UI.ViewModel
         }
         #endregion OpenFolderPathCommand
 
+        #region ResetFolderPathCommand
+        protected bool CanResetFolderPath(object param)
+        {
+            return true;
+        }
+        protected void ExecuteResetFolderPath(object param)
+        {
+            if (FolderPathHistory.Count() > 0)
+            {
+                FolderPath = FolderPathHistory.Peek();
+            }
+            else
+            {
+                FolderPath = null;
+            }
+        }
+        private ICommand _resetFolderPath;
+        public ICommand ResetFolderPath
+        {
+            get
+            {
+                if (_resetFolderPath == null)
+                {
+                    _resetFolderPath = new RelayCommand(
+                        param => ExecuteResetFolderPath(param),
+                        param => CanResetFolderPath(param)
+                        );
+                }
+                return _resetFolderPath;
+            }
+        }
+        #endregion ResetFolderPathCommand
+
         #region DoChecksumComparisonCommand
         protected bool CanDoChecksumComparison(object param)
         {
