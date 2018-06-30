@@ -410,8 +410,7 @@ namespace Dupe_Finder_UI.ViewModel
         protected async Task AddDirectory(string path)
         {
             // Invalidate current data
-            DuplicateItemCountIsValid = false;
-            WastedSpaceIsValid = false;
+            InvalidateAggregates();
             // Clear the dupes tree, since we're adding to and then reloading the set.
             Children.Clear();
 
@@ -457,8 +456,7 @@ namespace Dupe_Finder_UI.ViewModel
         public async Task ChecksumComparison()
         {
             // Invalidate current data
-            DuplicateItemCountIsValid = false;
-            WastedSpaceIsValid = false;
+            InvalidateAggregates();
             // Clear the dupes tree, since we're re-evaluating it with new info and then reloading the set.
             Children.Clear();
 
@@ -633,6 +631,12 @@ namespace Dupe_Finder_UI.ViewModel
         {
             DuplicateItemCount = Children.Select(g => g.Children.Count - 1).Sum();
             WastedSpace = Children.Select(g => g.Size * (g.Children.Count - 1)).Sum();
+        }
+
+        protected void InvalidateAggregates()
+        {
+            DuplicateItemCountIsValid = false;
+            WastedSpaceIsValid = false;
         }
         #endregion Utility Functions
     }
