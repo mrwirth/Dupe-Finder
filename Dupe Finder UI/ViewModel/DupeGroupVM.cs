@@ -33,7 +33,7 @@ namespace Dupe_Finder_UI.ViewModel
         public async Task DeleteFile(DuplicateFileVM fileVM)
         {
             Children.Remove(fileVM);
-            await Parent.DeleteFileFromDatabase(fileVM.File);
+            await Parent.DeleteFileFromDatabase(fileVM);
             if (Children.Count < 2)
             {
                 Parent.DeleteGroup(this);

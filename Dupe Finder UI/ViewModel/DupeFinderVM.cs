@@ -444,9 +444,8 @@ namespace Dupe_Finder_UI.ViewModel
                 {
                     Children.Add(group);
                 }
-                DuplicateItemCount = tree.Select(g => g.Children.Count - 1).Sum();
-                WastedSpace = tree.Select(g => (long)g.Size * (g.Children.Count - 1)).Sum();
             }
+            CalculateAggregates();
         }
 
         protected async Task OpenDirectory(string path)
@@ -492,9 +491,8 @@ namespace Dupe_Finder_UI.ViewModel
                 {
                     Children.Add(group);
                 }
-                DuplicateItemCount = tree.Select(g => g.Children.Count - 1).Sum();
-                WastedSpace = tree.Select(g => (long)g.Size * (g.Children.Count - 1)).Sum();
             }
+            CalculateAggregates();
         }
 
         protected void AddDirectoryToDatabase(string path)
@@ -565,18 +563,20 @@ namespace Dupe_Finder_UI.ViewModel
             }
         }
 
-        public async Task DeleteFileFromDatabase(Dupe_Finder_DB.File file)
+        public async Task DeleteFileFromDatabase(DuplicateFileVM fileVM)
         {
             using (var context = new DupeFinderContext(Options))
             {
-                context.Files.Remove(file);
+                context.Files.Remove(fileVM.File);
                 await context.SaveChangesAsync();
             }
+            CalculateAggregates();
         }
 
         public void DeleteGroup(DupeGroupVM group)
         {
             Children.Remove(group);
+            CalculateAggregates();
         }
         #endregion Operations
 
@@ -627,6 +627,12 @@ namespace Dupe_Finder_UI.ViewModel
             // we can't use `EnsureDeleted()` and instead have to close and open the connection to reset.
             Connection.Close();
             Connection.Open();
+        }
+
+        protected void CalculateAggregates()
+        {
+            DuplicateItemCount = Children.Select(g => g.Children.Count - 1).Sum();
+            WastedSpace = Children.Select(g => g.Size * (g.Children.Count - 1)).Sum();
         }
         #endregion Utility Functions
     }
