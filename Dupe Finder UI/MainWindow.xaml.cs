@@ -30,18 +30,5 @@ namespace Dupe_Finder_UI
             DuplicatesTreeVM = new DupeFinderVM(new WpfIOService());
             DataContext = DuplicatesTreeVM;
         }
-
-        private void TextBlockCopy_CanExecute(object sender, CanExecuteRoutedEventArgs e)
-        {
-            e.CanExecute = true;
-        }
-
-        private void TextBlockCopy_Executed(object sender, ExecutedRoutedEventArgs e)
-        {
-            if (sender is MenuItem menuItem && menuItem.DataContext is DuplicateFileVM duplicateFile)
-            {
-                Clipboard.SetDataObject(duplicateFile.Path);
-            }
-        }
     }
 }

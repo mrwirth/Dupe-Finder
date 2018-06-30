@@ -70,13 +70,7 @@
                     <TextBlock Text="{Binding Path}">
                         <TextBlock.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Command="Copy">
-                                    <MenuItem.CommandBindings>
-                                        <CommandBinding Command="Copy"
-                                                        CanExecute="TextBlockCopy_CanExecute"
-                                                        Executed="TextBlockCopy_Executed"/>
-                                    </MenuItem.CommandBindings>
-                                </MenuItem>
+                                <MenuItem Header="Copy Path" Command="{Binding CopyPath}"/>
                             </ContextMenu>
                         </TextBlock.ContextMenu>
                     </TextBlock>
