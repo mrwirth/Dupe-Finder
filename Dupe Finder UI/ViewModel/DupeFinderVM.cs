@@ -1,4 +1,5 @@
 ﻿using Dupe_Finder_DB;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -90,8 +91,7 @@ namespace Dupe_Finder_UI.ViewModel
         #endregion Results Data
 
         #region Path Data
-        // Last item is the currently loaded path.
-        private Stack<string> FolderPathHistory = new Stack<string>();
+        private List<string> CurrentFolders = new List<string>();
         private string _folderPath;
         public string FolderPath
         {
@@ -105,6 +105,11 @@ namespace Dupe_Finder_UI.ViewModel
         #endregion Path Data
 
         #region Local Data
+        #region Connection Data
+        protected SqliteConnection Connection;
+        protected DbContextOptions<DupeFinderContext> Options;
+        #endregion Connection Data
+
         protected enum ChecksumType { md5, sha256 };
 
         protected enum StateType
@@ -136,6 +141,9 @@ namespace Dupe_Finder_UI.ViewModel
         public DupeFinderVM(IOService ioService)
         {
             IOService = ioService;
+            Connection = new SqliteConnection(System.Configuration.ConfigurationManager.ConnectionStrings["InMemory"].ConnectionString);
+            Connection.Open();
+            Options = new DbContextOptionsBuilder<DupeFinderContext>().UseSqlite(Connection).Options;
         }
         #endregion Constructors
 
@@ -149,7 +157,9 @@ namespace Dupe_Finder_UI.ViewModel
                 var result = string.Empty;
                 if (columnName == "FolderPath")
                 {
-                    if (FolderPath != null && FolderPath != "" && Directory.Exists(FolderPath) == false)
+                    if (FolderPath != null && FolderPath != ""
+                        && (FolderPath == "{Multiple Folders}" && CurrentFolders.Count() > 1) == false
+                        && Directory.Exists(FolderPath) == false)
                     {
                         result = "Directory does not exist.";
                     }
@@ -163,18 +173,28 @@ namespace Dupe_Finder_UI.ViewModel
         #region OpenFolderCommand
         protected bool CanOpenFolder(object param)
         {
+            // We can always open a new folder as long as we're not already working on something.
             return State != StateType.Working;
         }
         protected async Task ExecuteOpenFolder(object param)
         {
+            // Save last state so we can return to it if no path given,
+            // then set current state to "Working".
             var LastState = State;
             State = StateType.Working;
+            Status = StatusText[StatusType.Working];
+            // Try to get path from user, returning to previous state if cancelled.
             var path = IOService.OpenFolderDialog();
             if (path != null)
             {
+                // Set the new location as current folder and
+                // Set the current path property to the newly received path.
+                CurrentFolders = new List<string>() { path };
                 FolderPath = path;
-                await LoadData(path);
-                FolderPathHistory.Push(path);
+                // Load file info from the directory into the database
+                // and then select the relevant info into the dupes tree.
+                await OpenDirectory(path);
+                // Set the state to indicate that we've got a directory loaded, but no further comparisons done.
                 State = StateType.DirectoryOpened;
             }
             else
@@ -182,6 +202,8 @@ namespace Dupe_Finder_UI.ViewModel
                 // Revert to previous state.
                 State = LastState;
             }
+            // Set status to finished.
+            Status = StatusText[StatusType.Done];
         }
         private ICommand _openFolder;
         public ICommand OpenFolder
@@ -207,13 +229,21 @@ namespace Dupe_Finder_UI.ViewModel
         }
         protected async Task ExecuteOpenFolderPath(object param)
         {
+            // Save last state so we can return to it if no path given,
+            // then set current state to "Working".
             var LastState = State;
             State = StateType.Working;
+            Status = StatusText[StatusType.Working];
+            // Check if the new folder path is valid, returning to previous state if not.
             var path = FolderPath;
             if (path != null && Directory.Exists(path))
             {
-                await LoadData(path);
-                FolderPathHistory.Push(path);
+                // Set the new location as current folder.
+                CurrentFolders = new List<string>() { path };
+                // Load file info from the directory into the database
+                // and then select the relevant info into the dupes tree.
+                await OpenDirectory(path);
+                // Set the state to indicate that we've got a directory loaded, but no further comparisons done.
                 State = StateType.DirectoryOpened;
             }
             else
@@ -221,6 +251,8 @@ namespace Dupe_Finder_UI.ViewModel
                 // Revert to previous state.
                 State = LastState;
             }
+            // Set status to finished.
+            Status = StatusText[StatusType.Done];
         }
         private ICommand _openFolderPath;
         public ICommand OpenFolderPath
@@ -239,6 +271,68 @@ namespace Dupe_Finder_UI.ViewModel
         }
         #endregion OpenFolderPathCommand
 
+        #region AddFolderCommand
+        protected bool CanAddFolder(object param)
+        {
+            // We can always add a new folder unless there's nothing already opened,
+            // or we're already working on something.
+            return State != StateType.Working && State != StateType.NoData;
+        }
+        protected async Task ExecuteAddFolder(object param)
+        {
+            // Save last state so we can return to it if no path given,
+            // then set current state to "Working".
+            var LastState = State;
+            State = StateType.Working;
+            Status = StatusText[StatusType.Working];
+            // Try to get path from user, returning to previous state if cancelled or the path is already loaded.
+            var path = IOService.OpenFolderDialog();
+            if (path != null && CurrentFolders.Contains(path) == false
+                && CurrentFolders.Any(s => path.StartsWith(s)) == false)
+            {
+                if (CurrentFolders.Any(s => s.StartsWith(path)) == false)
+                {
+                    // Add the new location to current folders and
+                    // set the current path property to indicate we've got multiple folders loaded.
+                    CurrentFolders.Add(path);
+                    FolderPath = "{Multiple Folders}";
+                    // Load file info from the directory into the database
+                    // and then select the relevant info into the dupes tree.
+                    await AddDirectory(path);
+                    // Set the state to indicate that we've got a directory loaded, but no further comparisons done.
+                    State = StateType.DirectoryOpened;
+                }
+                else if (CurrentFolders.Any(s => s.StartsWith(path)))
+                {
+                    // Add only the subfolders not already included.  
+                    throw new NotImplementedException();
+                }
+            }
+            else
+            {
+                // Revert to previous state.
+                State = LastState;
+            }
+            // Set status to finished.
+            Status = StatusText[StatusType.Done];
+        }
+        private ICommand _addFolder;
+        public ICommand AddFolder
+        {
+            get
+            {
+                if (_addFolder == null)
+                {
+                    _addFolder = new RelayCommandAsync(
+                        param => ExecuteAddFolder(param),
+                        param => CanAddFolder(param)
+                        );
+                }
+                return _addFolder;
+            }
+        }
+        #endregion AddFolderCommand
+
         #region ResetFolderPathCommand
         protected bool CanResetFolderPath(object param)
         {
@@ -246,9 +340,13 @@ namespace Dupe_Finder_UI.ViewModel
         }
         protected void ExecuteResetFolderPath(object param)
         {
-            if (FolderPathHistory.Count() > 0)
+            if (CurrentFolders.Count() == 1)
             {
-                FolderPath = FolderPathHistory.Peek();
+                FolderPath = CurrentFolders[0];
+            }
+            else if (CurrentFolders.Count() > 1)
+            {
+                FolderPath = "{Multiple Folders}";
             }
             else
             {
@@ -280,8 +378,11 @@ namespace Dupe_Finder_UI.ViewModel
         protected async Task ExecuteDoChecksumComparison(object param)
         {
             State = StateType.Working;
+            Status = StatusText[StatusType.Working];
             await ChecksumComparison();
             State = StateType.BinaryComparisonCompleted;
+            // Set status to finished.
+            Status = StatusText[StatusType.Done];
         }
         private ICommand _doChecksumComparison;
         public ICommand DoChecksumComparison
@@ -302,24 +403,19 @@ namespace Dupe_Finder_UI.ViewModel
         #endregion Commands
 
         #region Operations
-
-        public async Task LoadData(string path)
+        protected async Task AddDirectory(string path)
         {
-            // Set status and clear old data.
-            Status = StatusText[StatusType.Working];
+            // Invalidate current data
             DuplicateItemCountIsValid = false;
             WastedSpaceIsValid = false;
+            // Clear the dupes tree, since we're adding to and then reloading the set.
             Children.Clear();
 
             // Load all the basic info about the new directory into the database.
-            FolderPath = path;
-            await Task.Run(() => LoadDirectory(path));
+            await Task.Run(() => AddDirectoryToDatabase(path));
 
             // Extract duplicates and add to viewmodel.
-            var optionsBuilder = new DbContextOptionsBuilder<DupeFinderContext>();
-            var connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["Test"];
-            optionsBuilder.UseSqlite(connectionString.ConnectionString);
-            using (var context = new DupeFinderContext(optionsBuilder.Options))
+            using (var context = new DupeFinderContext(Options))
             {
                 context.Database.EnsureCreated();
 
@@ -347,25 +443,27 @@ namespace Dupe_Finder_UI.ViewModel
                 DuplicateItemCount = tree.Select(g => g.Children.Count - 1).Sum();
                 WastedSpace = tree.Select(g => (long)g.Size * (g.Children.Count - 1)).Sum();
             }
+        }
 
-            // Set status to finished and enable full comparison.
-            Status = StatusText[StatusType.Done];
+        protected async Task OpenDirectory(string path)
+        {
+            ResetDatabase();
+            await AddDirectory(path);
         }
 
         public async Task ChecksumComparison()
         {
-            // Set status, clear the entries, and compute checksums where necessary.
-            Status = StatusText[StatusType.Working];
+            // Invalidate current data
             DuplicateItemCountIsValid = false;
             WastedSpaceIsValid = false;
+            // Clear the dupes tree, since we're re-evaluating it with new info and then reloading the set.
             Children.Clear();
-            await Task.Run(() => CompareFiles());
+
+            // Calculate checksums for all files that have the same size as another file and don't already have a checksum value.
+            await Task.Run(() => CalculateNewChecksums());
 
             // Extract duplicates and add to viewmodel.
-            var optionsBuilder = new DbContextOptionsBuilder<DupeFinderContext>();
-            var connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["Test"];
-            optionsBuilder.UseSqlite(connectionString.ConnectionString);
-            using (var context = new DupeFinderContext(optionsBuilder.Options))
+            using (var context = new DupeFinderContext(Options))
             {
                 context.Database.EnsureCreated();
 
@@ -393,22 +491,15 @@ namespace Dupe_Finder_UI.ViewModel
                 DuplicateItemCount = tree.Select(g => g.Children.Count - 1).Sum();
                 WastedSpace = tree.Select(g => (long)g.Size * (g.Children.Count - 1)).Sum();
             }
-
-            // Set status to finished.
-            Status = StatusText[StatusType.Done];
         }
 
-        public void LoadDirectory(string path)
+        protected void AddDirectoryToDatabase(string path)
         {
-            var optionsBuilder = new DbContextOptionsBuilder<DupeFinderContext>();
-            var connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["Test"];
-            optionsBuilder.UseSqlite(connectionString.ConnectionString);
-            using (var context = new DupeFinderContext(optionsBuilder.Options))
+            using (var context = new DupeFinderContext(Options))
             {
-                context.Database.EnsureDeleted();
                 context.Database.EnsureCreated();
 
-                var sizes = new Dictionary<long, SizeInfo>();
+                var sizes = context.SizeInfos.ToDictionary(si => si.Size);
                 var filepaths = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
                 foreach (var filepath in filepaths)
                 {
@@ -436,22 +527,19 @@ namespace Dupe_Finder_UI.ViewModel
             }
         }
 
-        public void CompareFiles()
+        protected void CalculateNewChecksums()
         {
-            var optionsBuilder = new DbContextOptionsBuilder<DupeFinderContext>();
-            var connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["Test"];
-            optionsBuilder.UseSqlite(connectionString.ConnectionString);
-            using (var context = new DupeFinderContext(optionsBuilder.Options))
+            using (var context = new DupeFinderContext(Options))
             {
                 var files = context.Files
                     .GroupBy(f => f.Size)
                     .Where(g => g.Count() > 1)
                     .OrderBy(g => g.Count() * g.Key.Size);
-
-                var checksums = new Dictionary<string, Checksum>();
+                
+                var checksums = context.Checksums.ToDictionary(cs => cs.Value);
                 foreach (var group in files)
                 {
-                    foreach (var file in group)
+                    foreach (var file in group.Where(f => f.ChecksumId == null))
                     {
                         // Let user see which file we're on.
                         Status = $"Reading file: {file.Path}";
@@ -513,6 +601,14 @@ namespace Dupe_Finder_UI.ViewModel
                     return BitConverter.ToString(sha256.ComputeHash(stream)).Replace("-", "").ToLower();
                 }
             }
+        }
+
+        protected void ResetDatabase()
+        {
+            // Since the Sqlite :memory: database requires we keep an open connection,
+            // we can't use `EnsureDeleted()` and instead have to close and open the connection to reset.
+            Connection.Close();
+            Connection.Open();
         }
         #endregion Utility Functions
     }

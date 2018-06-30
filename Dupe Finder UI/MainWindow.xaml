@@ -14,6 +14,7 @@
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
                 <MenuItem Header="_Open Folder..." Command="{Binding OpenFolder}"/>
+                <MenuItem Header="_Add Folder..." Command="{Binding AddFolder}"/>
                 <MenuItem Header="O_pen Saved Session..."/>
                 <MenuItem Header="_Save Session As..."/>
             </MenuItem>
@@ -26,6 +27,9 @@
             <ToolBar>
                 <Button Command="{Binding OpenFolder}">
                     <ContentControl Content="{StaticResource OpenFolder}" ToolTip="Open Folder..."/>
+                </Button>
+                <Button Command="{Binding AddFolder}">
+                    <ContentControl Content="{StaticResource AddFolder}" ToolTip="Add Folder..."/>
                 </Button>
             </ToolBar>
         </ToolBarTray>
