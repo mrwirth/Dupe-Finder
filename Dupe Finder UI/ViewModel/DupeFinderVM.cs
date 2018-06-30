@@ -18,6 +18,10 @@ namespace Dupe_Finder_UI.ViewModel
     public class DupeFinderVM : BaseVM, IDataErrorInfo
     {
         #region Data
+        #region Tree Data
+        public ObservableCollection<DupeGroupVM> Children { get; } = new ObservableCollection<DupeGroupVM>();
+        #endregion Tree Data
+
         #region Status Data
         protected enum StatusType { Done, Working };
         protected Dictionary<StatusType, string> StatusText = new Dictionary<StatusType, string>()
@@ -427,10 +431,10 @@ namespace Dupe_Finder_UI.ViewModel
                     .AsEnumerable()
                     .Select(g =>
                     {
-                        var result = new DupeGroupVM(g.Key.Size);
+                        var result = new DupeGroupVM(g.Key.Size, this);
                         foreach (var file in g)
                         {
-                            result.Children.Add(new DuplicateFileVM(file));
+                            result.Children.Add(new DuplicateFileVM(file, result));
                         }
                         return result;
                     });
@@ -475,10 +479,10 @@ namespace Dupe_Finder_UI.ViewModel
                     .AsEnumerable()
                     .Select(g =>
                     {
-                        var result = new DupeGroupVM(g.Key.Size);
+                        var result = new DupeGroupVM(g.Key.Size, this);
                         foreach (var file in g)
                         {
-                            result.Children.Add(new DuplicateFileVM(file));
+                            result.Children.Add(new DuplicateFileVM(file, result));
                         }
                         return result;
                     });
@@ -559,6 +563,20 @@ namespace Dupe_Finder_UI.ViewModel
                 }
                 context.SaveChanges();
             }
+        }
+
+        public async Task DeleteFileFromDatabase(Dupe_Finder_DB.File file)
+        {
+            using (var context = new DupeFinderContext(Options))
+            {
+                context.Files.Remove(file);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        public void DeleteGroup(DupeGroupVM group)
+        {
+            Children.Remove(group);
         }
         #endregion Operations
 

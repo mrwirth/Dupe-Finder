@@ -11,17 +11,9 @@ namespace Dupe_Finder_UI.ViewModel
     public class BaseVM : INotifyPropertyChanged
     {
         #region Data
-        public BaseVM Parent { get; }
-        public ObservableCollection<BaseVM> Children { get; } = new ObservableCollection<BaseVM>();
         #endregion Data
 
         #region Constructors
-        public BaseVM(BaseVM parent)
-        {
-            Parent = parent;
-        }
-
-        public BaseVM() : this(null) { }
         #endregion Constructors
 
         #region INotifyPropertyChanged Members

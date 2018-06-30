@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using Microsoft.VisualBasic.FileIO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,18 +13,21 @@ namespace Dupe_Finder_UI.ViewModel
     public class DuplicateFileVM : BaseVM
     {
         #region Data
-        public string Path { get; }
+        #region Tree Data
+        public DupeGroupVM Parent { get; }
+        #endregion Tree Data
+
+        public Dupe_Finder_DB.File File { get; }
+        public string Path => File.Path;
+        public bool HasChecksum => File.ChecksumId != null;
         #endregion Data
 
         #region Constructors
-        public DuplicateFileVM(string path)
-        {
-            Path = path;
-        }
 
-        public DuplicateFileVM(Dupe_Finder_DB.File file)
+        public DuplicateFileVM(Dupe_Finder_DB.File file, DupeGroupVM parent)
         {
-            Path = file.Path;
+            File = file;
+            Parent = parent;
         }
         #endregion Constructors
 
@@ -50,6 +54,34 @@ namespace Dupe_Finder_UI.ViewModel
                         );
                 }
                 return _copyPath;
+            }
+        }
+        #endregion OpenFolderCommand
+
+
+        #region DeleteFileCommand
+        protected bool CanDeleteFile(object param)
+        {
+            return true;
+        }
+        protected async Task ExecuteDeleteFile(object param)
+        {
+            FileSystem.DeleteFile(Path, UIOption.AllDialogs, RecycleOption.SendToRecycleBin);
+            await Parent.DeleteFile(this);
+        }
+        private ICommand _deleteFile;
+        public ICommand DeleteFile
+        {
+            get
+            {
+                if (_deleteFile == null)
+                {
+                    _deleteFile = new RelayCommandAsync(
+                        param => ExecuteDeleteFile(param),
+                        param => CanDeleteFile(param)
+                        );
+                }
+                return _deleteFile;
             }
         }
         #endregion OpenFolderCommand

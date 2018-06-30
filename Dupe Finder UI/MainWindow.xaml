@@ -67,13 +67,18 @@
                 <!-- For `DuplicateFileVM` items. -->
                 <DataTemplate
                     DataType="{x:Type vm:DuplicateFileVM}">
-                    <TextBlock Text="{Binding Path}">
-                        <TextBlock.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Copy Path" Command="{Binding CopyPath}"/>
-                            </ContextMenu>
-                        </TextBlock.ContextMenu>
-                    </TextBlock>
+                    <StackPanel Orientation="Horizontal">
+                        <ContentControl Content="{StaticResource Checkmark}"
+                                        Visibility="{Binding HasChecksum, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        <TextBlock Text="{Binding Path}">
+                            <TextBlock.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Copy Path" Command="{Binding CopyPath}"/>
+                                    <MenuItem Header="Delete" Command="{Binding DeleteFile}"/>
+                                </ContextMenu>
+                            </TextBlock.ContextMenu>
+                        </TextBlock>
+                    </StackPanel>
                 </DataTemplate>
             </TreeView.Resources>
             <!--<TreeViewItem Header="Nothing opened yet."/>-->
