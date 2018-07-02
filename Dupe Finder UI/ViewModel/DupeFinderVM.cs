@@ -23,11 +23,13 @@ namespace Dupe_Finder_UI.ViewModel
         #endregion Tree Data
 
         #region Status Data
-        protected enum StatusType { Done, Working };
+        protected enum StatusType { Done, Working, SavingSession, OpeningSession };
         protected Dictionary<StatusType, string> StatusText = new Dictionary<StatusType, string>()
         {
             { StatusType.Done, "Done." },
-            { StatusType.Working, "Working..." }
+            { StatusType.Working, "Working..." },
+            { StatusType.SavingSession, "Saving session..." },
+            { StatusType.OpeningSession, "Opening session..." }
         };
 
         private string _status = "Nothing loaded yet.";
@@ -115,15 +117,6 @@ namespace Dupe_Finder_UI.ViewModel
         #endregion Connection Data
 
         protected enum ChecksumType { md5, sha256 };
-
-        protected enum StateType
-        {
-            NoData = 0, // Intentional default value.
-            Working,
-            DirectoryOpened,
-            ChecksumComparisonCompleted,
-            BinaryComparisonCompleted
-        }
         private StateType _state;
         protected StateType State
         {
@@ -194,7 +187,7 @@ namespace Dupe_Finder_UI.ViewModel
                 // Set the new location as current folder and
                 // Set the current path property to the newly received path.
                 CurrentFolders = new List<string>() { path };
-                FolderPath = path;
+                SetFolderPath();
                 // Load file info from the directory into the database
                 // and then select the relevant info into the dupes tree.
                 await OpenDirectory(path);
@@ -299,7 +292,7 @@ namespace Dupe_Finder_UI.ViewModel
                     // Add the new location to current folders and
                     // set the current path property to indicate we've got multiple folders loaded.
                     CurrentFolders.Add(path);
-                    FolderPath = "{Multiple Folders}";
+                    SetFolderPath();
                     // Load file info from the directory into the database
                     // and then select the relevant info into the dupes tree.
                     await AddDirectory(path);
@@ -337,6 +330,86 @@ namespace Dupe_Finder_UI.ViewModel
         }
         #endregion AddFolderCommand
 
+        #region SaveSessionAsCommand
+        protected bool CanSaveSessionAs(object param)
+        {
+            return true;
+        }
+        protected async Task ExecuteSaveSessionAs(object param)
+        {
+            // Save last state so we can return to it if no path given,
+            // then set current state to "Working".
+            var LastState = State;
+            State = StateType.Working;
+            Status = StatusText[StatusType.SavingSession];
+            // Try to get path from user, returning to previous state if cancelled.
+            var path = IOService.SaveSessionFileDialog();
+            if (path != null)
+            {
+                await CopyDatabaseToFile(path, LastState);
+            }
+            // Revert to previous state.
+            State = LastState;
+            // Set status to finished.
+            Status = StatusText[StatusType.Done];
+        }
+        private ICommand _saveSessionAs;
+        public ICommand SaveSessionAs
+        {
+            get
+            {
+                if (_saveSessionAs == null)
+                {
+                    _saveSessionAs = new RelayCommandAsync(
+                        param => ExecuteSaveSessionAs(param),
+                        param => CanSaveSessionAs(param)
+                        );
+                }
+                return _saveSessionAs;
+            }
+        }
+        #endregion SaveSessionAsCommand
+
+        #region OpenSavedSessionCommand
+        protected bool CanOpenSavedSession(object param)
+        {
+            return true;
+        }
+        protected async Task ExecuteOpenSavedSession(object param)
+        {
+            // Save last state so we can return to it if no path given,
+            // then set current state to "Working".
+            var LastState = State;
+            State = StateType.Working;
+            Status = StatusText[StatusType.OpeningSession];
+            // Try to get path from user, returning to previous state if cancelled.
+            var path = IOService.OpenSavedSessionDialog();
+            if (path != null)
+            {
+                LastState = await OpenDatabaseFromFile(path);
+            }
+            // Revert to previous state.
+            State = LastState;
+            // Set status to finished.
+            Status = StatusText[StatusType.Done];
+        }
+        private ICommand _openSavedSession;
+        public ICommand OpenSavedSession
+        {
+            get
+            {
+                if (_openSavedSession == null)
+                {
+                    _openSavedSession = new RelayCommandAsync(
+                        param => ExecuteOpenSavedSession(param),
+                        param => CanOpenSavedSession(param)
+                        );
+                }
+                return _openSavedSession;
+            }
+        }
+        #endregion SaveSessionAsCommand
+
         #region ResetFolderPathCommand
         protected bool CanResetFolderPath(object param)
         {
@@ -344,18 +417,7 @@ namespace Dupe_Finder_UI.ViewModel
         }
         protected void ExecuteResetFolderPath(object param)
         {
-            if (CurrentFolders.Count() == 1)
-            {
-                FolderPath = CurrentFolders[0];
-            }
-            else if (CurrentFolders.Count() > 1)
-            {
-                FolderPath = "{Multiple Folders}";
-            }
-            else
-            {
-                FolderPath = null;
-            }
+            SetFolderPath();
         }
         private ICommand _resetFolderPath;
         public ICommand ResetFolderPath
@@ -418,39 +480,142 @@ namespace Dupe_Finder_UI.ViewModel
             await Task.Run(() => AddDirectoryToDatabase(path));
 
             // Extract duplicates and add to viewmodel.
-            using (var context = new DupeFinderContext(Options))
-            {
-                context.Database.EnsureCreated();
-
-                // Extract duplicates.
-                var tree = context.Files
-                    .GroupBy(f => f.Size)
-                    .Where(g => g.Count() > 1)
-                    .OrderByDescending(g => g.Count() * g.Key.Size)
-                    .AsEnumerable()
-                    .Select(g =>
-                    {
-                        var result = new DupeGroupVM(g.Key.Size, this);
-                        foreach (var file in g)
-                        {
-                            result.Children.Add(new DuplicateFileVM(file, result));
-                        }
-                        return result;
-                    });
-
-                // Fill in viewmodel data.
-                foreach (var group in tree)
-                {
-                    Children.Add(group);
-                }
-            }
-            CalculateAggregates();
+            LoadDatabaseInfoToViewModel(StateType.DirectoryOpened);
         }
 
         protected async Task OpenDirectory(string path)
         {
             ResetDatabase();
             await AddDirectory(path);
+        }
+
+        protected void LoadDatabaseInfoToViewModel(StateType resultState)
+        {
+            if (resultState == StateType.DirectoryOpened)
+            {
+                using (var context = new DupeFinderContext(Options))
+                {
+                    context.Database.EnsureCreated();
+
+                    // Extract duplicates.
+                    var tree = context.Files
+                        .GroupBy(f => f.Size)
+                        .Where(g => g.Count() > 1)
+                        .OrderByDescending(g => g.Count() * g.Key.Size)
+                        .AsEnumerable()
+                        .Select(g =>
+                        {
+                            var result = new DupeGroupVM(g.Key.Size, this);
+                            foreach (var file in g)
+                            {
+                                result.Children.Add(new DuplicateFileVM(file, result));
+                            }
+                            return result;
+                        });
+                    
+                    // Fill in viewmodel data.
+                    foreach (var group in tree)
+                    {
+                        Children.Add(group);
+                    }
+                }
+                CalculateAggregates();
+            }
+            else if (resultState == StateType.ChecksumComparisonCompleted)
+            {
+                using (var context = new DupeFinderContext(Options))
+                {
+                    context.Database.EnsureCreated();
+
+                    // Extract duplicates.
+                    var tree = context.Files
+                        .GroupBy(f => new { f.ChecksumId, f.Size.Size })
+                        .Where(g => g.Count() > 1)
+                        .OrderByDescending(g => g.Count() * g.Key.Size)
+                        .AsEnumerable()
+                        .Select(g =>
+                        {
+                            var result = new DupeGroupVM(g.Key.Size, this);
+                            foreach (var file in g)
+                            {
+                                result.Children.Add(new DuplicateFileVM(file, result));
+                            }
+                            return result;
+                        });
+
+                    // Fill in viewmodel data.
+                    foreach (var group in tree)
+                    {
+                        Children.Add(group);
+                    }
+                }
+                CalculateAggregates();
+            }
+            else if (resultState == StateType.BinaryComparisonCompleted)
+            {
+                throw new NotImplementedException();
+            }
+            else
+            {
+                throw new ArgumentException("resultState");
+            }
+        }
+
+        protected async Task CopyDatabaseToFile(string targetPath, StateType databaseState)
+        {
+            var connectionString = "Data Source=" + targetPath;
+            var targetOptions = new DbContextOptionsBuilder<DupeFinderContext>().UseSqlite(connectionString).Options;
+            using (var workingDatabase = new DupeFinderContext(Options))
+            using (var targetDatabase = new DupeFinderContext(targetOptions))
+            {
+                await workingDatabase.Database.EnsureCreatedAsync();
+                await targetDatabase.Database.EnsureDeletedAsync();
+                await targetDatabase.Database.EnsureCreatedAsync();
+
+                await targetDatabase.AddRangeAsync(workingDatabase.Checksums);
+                await targetDatabase.AddRangeAsync(workingDatabase.SizeInfos);
+                await targetDatabase.AddRangeAsync(workingDatabase.Files);
+
+                //var sessionPaths = new List<SessionPath>();
+                //foreach (var path in CurrentFolders)
+                //{
+                //    var sessionPath = new SessionPath() { Path = path };
+                //    targetDatabase.SessionPaths.Add(sessionPath);
+                //    sessionPaths.Add(sessionPath);
+                //}
+                var sessionInfo = new SessionInfo()
+                {
+                    State = databaseState,
+                    SessionPaths = CurrentFolders.Select(f => new SessionPath() { Path = f }).ToList()
+                };
+                targetDatabase.SessionInfo.Add(sessionInfo);
+
+                await targetDatabase.SaveChangesAsync();
+            }
+        }
+
+        protected async Task<StateType> OpenDatabaseFromFile(string sourcePath)
+        {
+            var connectionString = "Data Source=" + sourcePath;
+            var sourceOptions = new DbContextOptionsBuilder<DupeFinderContext>().UseSqlite(connectionString).Options;
+            StateType finalState;
+            using (var workingDatabase = new DupeFinderContext(Options))
+            using (var sourceDatabase = new DupeFinderContext(sourceOptions))
+            {
+                await workingDatabase.Database.EnsureCreatedAsync();
+                await sourceDatabase.Database.EnsureCreatedAsync();
+
+                await workingDatabase.AddRangeAsync(sourceDatabase.Checksums);
+                await workingDatabase.AddRangeAsync(sourceDatabase.SizeInfos);
+                await workingDatabase.AddRangeAsync(sourceDatabase.Files);
+                await workingDatabase.SaveChangesAsync();
+                CurrentFolders.AddRange(sourceDatabase.SessionPaths.Select(sp => sp.Path));
+                SetFolderPath();
+
+                finalState = (await sourceDatabase.SessionInfo.FirstAsync()).State;
+                LoadDatabaseInfoToViewModel(finalState);
+                return finalState;
+            }
         }
 
         public async Task ChecksumComparison()
@@ -464,33 +629,7 @@ namespace Dupe_Finder_UI.ViewModel
             await Task.Run(() => CalculateNewChecksums());
 
             // Extract duplicates and add to viewmodel.
-            using (var context = new DupeFinderContext(Options))
-            {
-                context.Database.EnsureCreated();
-
-                // Extract duplicates.
-                var tree = context.Files
-                    .GroupBy(f => new { f.ChecksumId, f.Size.Size })
-                    .Where(g => g.Count() > 1)
-                    .OrderByDescending(g => g.Count() * g.Key.Size)
-                    .AsEnumerable()
-                    .Select(g =>
-                    {
-                        var result = new DupeGroupVM(g.Key.Size, this);
-                        foreach (var file in g)
-                        {
-                            result.Children.Add(new DuplicateFileVM(file, result));
-                        }
-                        return result;
-                    });
-
-                // Fill in viewmodel data.
-                foreach (var group in tree)
-                {
-                    Children.Add(group);
-                }
-            }
-            CalculateAggregates();
+            LoadDatabaseInfoToViewModel(StateType.ChecksumComparisonCompleted);
         }
 
         protected void AddDirectoryToDatabase(string path)
@@ -625,6 +764,22 @@ namespace Dupe_Finder_UI.ViewModel
             // we can't use `EnsureDeleted()` and instead have to close and open the connection to reset.
             Connection.Close();
             Connection.Open();
+        }
+
+        protected void SetFolderPath()
+        {
+            if (CurrentFolders.Count() == 0)
+            {
+                FolderPath = null;
+            }
+            else if (CurrentFolders.Count() == 1)
+            {
+                FolderPath = CurrentFolders[0];
+            }
+            else
+            {
+                FolderPath = "{Multiple Folders}";
+            }
         }
 
         protected void CalculateAggregates()

@@ -29,5 +29,8 @@ namespace Dupe_Finder_DB
         public DbSet<File> Files { get; set; }
         public DbSet<Checksum> Checksums { get; set; }
         public DbSet<SizeInfo> SizeInfos { get; set; }
+
+        public DbSet<SessionInfo> SessionInfo { get; set; }
+        public DbSet<SessionPath> SessionPaths { get; set; }
     }
 }

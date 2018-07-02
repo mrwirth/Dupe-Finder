@@ -114,6 +114,8 @@
     <Compile Include="DupeFinderContext.cs" />
     <Compile Include="File.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SessionInfo.cs" />
+    <Compile Include="SessionPath.cs" />
     <Compile Include="SizeInfo.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -9,5 +9,7 @@ namespace Dupe_Finder_UI
     public interface IOService
     {
         string OpenFolderDialog();
+        string SaveSessionFileDialog();
+        string OpenSavedSessionDialog();
     }
 }

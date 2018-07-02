@@ -15,8 +15,9 @@
             <MenuItem Header="_File">
                 <MenuItem Header="_Open Folder..." Command="{Binding OpenFolder}"/>
                 <MenuItem Header="_Add Folder..." Command="{Binding AddFolder}"/>
-                <MenuItem Header="O_pen Saved Session..."/>
-                <MenuItem Header="_Save Session As..."/>
+                <Separator/>
+                <MenuItem Header="O_pen Saved Session..." Command="{Binding OpenSavedSession}"/>
+                <MenuItem Header="_Save Session As..." Command="{Binding SaveSessionAs}"/>
             </MenuItem>
             <MenuItem Header="_Comparison">
                 <MenuItem Header="_Start Checksum Comparison"
